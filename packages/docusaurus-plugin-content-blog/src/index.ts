@@ -16,6 +16,7 @@ import {
   reportMessage,
   posixPath,
   addTrailingPathSeparator,
+  createAbsoluteFilePathMatcher,
 } from '@docusaurus/utils';
 import {
   STATIC_DIR_NAME,
@@ -55,7 +56,7 @@ import {
 export default function pluginContentBlog(
   context: LoadContext,
   options: PluginOptions,
-): Plugin<BlogContent | null> {
+): Plugin<BlogContent> {
   if (options.admonitions) {
     options.remarkPlugins = options.remarkPlugins.concat([
       [admonitions, options.admonitions],
@@ -88,8 +89,6 @@ export default function pluginContentBlog(
   const aliasedSource = (source: string) =>
     `~blog/${posixPath(path.relative(pluginDataDirRoot, source))}`;
 
-  let blogPosts: BlogPost[] = [];
-
   return {
     name: 'docusaurus-plugin-content-blog',
 
@@ -102,24 +101,28 @@ export default function pluginContentBlog(
       );
     },
 
-    getClientModules() {
-      const modules = [];
-
-      if (options.admonitions) {
-        modules.push(require.resolve('remark-admonitions/styles/infima.css'));
-      }
-
-      return modules;
-    },
-
     // Fetches blog contents and returns metadata for the necessary routes.
     async loadContent() {
-      const {postsPerPage, routeBasePath} = options;
+      const {
+        postsPerPage: postsPerPageOption,
+        routeBasePath,
+        blogDescription,
+        blogTitle,
+      } = options;
 
-      blogPosts = await generateBlogPosts(contentPaths, context, options);
+      const blogPosts: BlogPost[] = await generateBlogPosts(
+        contentPaths,
+        context,
+        options,
+      );
 
       if (!blogPosts.length) {
-        return null;
+        return {
+          blogPosts: [],
+          blogListPaginated: [],
+          blogTags: {},
+          blogTagsListPath: null,
+        };
       }
 
       // Colocate next and prev metadata.
@@ -145,6 +148,8 @@ export default function pluginContentBlog(
       // Blog pagination routes.
       // Example: `/blog`, `/blog/page/1`, `/blog/page/2`
       const totalCount = blogPosts.length;
+      const postsPerPage =
+        postsPerPageOption === 'ALL' ? totalCount : postsPerPageOption;
       const numberOfPages = Math.ceil(totalCount / postsPerPage);
       const {
         siteConfig: {baseUrl = ''},
@@ -172,8 +177,8 @@ export default function pluginContentBlog(
               page < numberOfPages - 1
                 ? blogPaginationPermalink(page + 1)
                 : null,
-            blogDescription: options.blogDescription,
-            blogTitle: options.blogTitle,
+            blogDescription,
+            blogTitle,
           },
           items: blogPosts
             .slice(page * postsPerPage, (page + 1) * postsPerPage)
@@ -242,7 +247,7 @@ export default function pluginContentBlog(
 
       const {addRoute, createData} = actions;
       const {
-        blogPosts: loadedBlogPosts,
+        blogPosts,
         blogListPaginated,
         blogTags,
         blogTagsListPath,
@@ -275,7 +280,7 @@ export default function pluginContentBlog(
 
       // Create routes for blog entries.
       await Promise.all(
-        loadedBlogPosts.map(async (blogPost) => {
+        blogPosts.map(async (blogPost) => {
           const {id, metadata} = blogPost;
           await createData(
             // Note that this created data path must be in sync with
@@ -403,6 +408,7 @@ export default function pluginContentBlog(
       _config: Configuration,
       isServer: boolean,
       {getJSLoader}: ConfigureWebpackUtils,
+      content,
     ) {
       const {
         rehypePlugins,
@@ -416,7 +422,7 @@ export default function pluginContentBlog(
         siteDir,
         contentPaths,
         truncateMarker,
-        sourceToPermalink: getSourceToPermalink(blogPosts),
+        sourceToPermalink: getSourceToPermalink(content.blogPosts),
         onBrokenMarkdownLink: (brokenMarkdownLink) => {
           if (onBrokenMarkdownLinks === 'ignore') {
             return;
@@ -428,6 +434,7 @@ export default function pluginContentBlog(
         },
       };
 
+      const contentDirs = getContentPathList(contentPaths);
       return {
         resolve: {
           alias: {
@@ -438,7 +445,7 @@ export default function pluginContentBlog(
           rules: [
             {
               test: /(\.mdx?)$/,
-              include: getContentPathList(contentPaths)
+              include: contentDirs
                 // Trailing slash is important, see https://github.com/facebook/docusaurus/pull/3970
                 .map(addTrailingPathSeparator),
               use: [
@@ -451,9 +458,13 @@ export default function pluginContentBlog(
                     beforeDefaultRemarkPlugins,
                     beforeDefaultRehypePlugins,
                     staticDir: path.join(siteDir, STATIC_DIR_NAME),
-                    // Note that metadataPath must be the same/in-sync as
-                    // the path from createData for each MDX.
+                    isMDXPartial: createAbsoluteFilePathMatcher(
+                      options.exclude,
+                      contentDirs,
+                    ),
                     metadataPath: (mdxPath: string) => {
+                      // Note that metadataPath must be the same/in-sync as
+                      // the path from createData for each MDX.
                       const aliasedPath = aliasedSitePath(mdxPath, siteDir);
                       return path.join(
                         dataDir,
@@ -463,6 +474,12 @@ export default function pluginContentBlog(
                     // For blog posts a title in markdown is always removed
                     // Blog posts title are rendered separately
                     removeContentTitle: true,
+                    // those frontMatter fields will be exported as "frontMatterAssets" and eventually be converted to require() calls for relative file paths
+                    frontMatterAssetKeys: [
+                      'image',
+                      'authorImageURL',
+                      'author_image_URL',
+                    ],
                   },
                 },
                 {
@@ -500,14 +517,14 @@ export default function pluginContentBlog(
           try {
             await fs.outputFile(feedPath, feedContent);
           } catch (err) {
-            throw new Error(`Generating ${feedType} feed failed: ${err}`);
+            throw new Error(`Generating ${feedType} feed failed: ${err}.`);
           }
         }),
       );
     },
 
-    injectHtmlTags() {
-      if (!blogPosts.length) {
+    injectHtmlTags({content}) {
+      if (!content.blogPosts.length) {
         return {};
       }
 

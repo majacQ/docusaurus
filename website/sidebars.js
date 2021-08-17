@@ -12,7 +12,12 @@ module.exports = {
       type: 'category',
       label: 'Getting Started',
       collapsed: false,
-      items: ['installation', 'configuration', 'typescript-support'],
+      items: [
+        'installation',
+        'configuration',
+        'playground',
+        'typescript-support',
+      ],
     },
     {
       type: 'category',
@@ -44,6 +49,7 @@ module.exports = {
             'guides/markdown-features/assets',
             'guides/markdown-features/plugins',
             'guides/markdown-features/math-equations',
+            'guides/markdown-features/head-metadatas',
           ],
         },
         'styling-layout',

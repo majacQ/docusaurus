@@ -12,6 +12,7 @@ import {
   AdmonitionsSchema,
   URISchema,
 } from '@docusaurus/utils-validation';
+import {GlobExcludeDefault} from '@docusaurus/utils';
 
 export const DEFAULT_OPTIONS = {
   feedOptions: {type: ['rss', 'atom']},
@@ -31,7 +32,8 @@ export const DEFAULT_OPTIONS = {
   blogSidebarCount: 5,
   blogSidebarTitle: 'Recent posts',
   postsPerPage: 10,
-  include: ['*.md', '*.mdx'],
+  include: ['**/*.{md,mdx}'],
+  exclude: GlobExcludeDefault,
   routeBasePath: 'blog',
   path: 'blog',
   editLocalizedFiles: false,
@@ -44,9 +46,9 @@ export const PluginOptionSchema = Joi.object({
     // .allow('')
     .default(DEFAULT_OPTIONS.routeBasePath),
   include: Joi.array().items(Joi.string()).default(DEFAULT_OPTIONS.include),
-  postsPerPage: Joi.number()
-    .integer()
-    .min(1)
+  exclude: Joi.array().items(Joi.string()).default(DEFAULT_OPTIONS.exclude),
+  postsPerPage: Joi.alternatives()
+    .try(Joi.equal('ALL').required(), Joi.number().integer().min(1).required())
     .default(DEFAULT_OPTIONS.postsPerPage),
   blogListComponent: Joi.string().default(DEFAULT_OPTIONS.blogListComponent),
   blogPostComponent: Joi.string().default(DEFAULT_OPTIONS.blogPostComponent),
@@ -61,7 +63,7 @@ export const PluginOptionSchema = Joi.object({
     .allow('')
     .default(DEFAULT_OPTIONS.blogDescription),
   blogSidebarCount: Joi.alternatives()
-    .try(Joi.equal('ALL').required(), Joi.number().required())
+    .try(Joi.equal('ALL').required(), Joi.number().integer().min(0).required())
     .default(DEFAULT_OPTIONS.blogSidebarCount),
   blogSidebarTitle: Joi.string().default(DEFAULT_OPTIONS.blogSidebarTitle),
   showReadingTime: Joi.bool().default(DEFAULT_OPTIONS.showReadingTime),

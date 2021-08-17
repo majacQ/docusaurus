@@ -9,7 +9,7 @@ Docusaurus is essentially a set of npm [packages](https://github.com/facebook/do
 
 Use the **[Fast Track](introduction.md#fast-track)** to understand Docusaurus in **5 minutes ⏱**!
 
-Use **[new.docusaurus.io](https://new.docusaurus.io)** to test Docusaurus immediately in your browser!
+Use **[docusaurus.new](https://docusaurus.new)** to test Docusaurus immediately in your browser!
 
 :::
 
@@ -50,6 +50,12 @@ If you want to skip installing dependencies, use the `--skip-install` option, li
 
 ```bash
 npx @docusaurus/init@latest init my-website classic --skip-install
+```
+
+You can also use the template's TypeScript variant by passing the `--typescript` flag.
+
+```bash
+npx @docusaurus/init@latest init my-website classic --typescript
 ```
 
 ## Project structure {#project-structure}
@@ -151,8 +157,14 @@ You should see the correct version as output.
 Alternatively, if you are using Yarn, you can do:
 
 ```bash
-yarn upgrade @docusaurus/core@2.0.0-beta.0 @docusaurus/preset-classic@2.0.0-beta.0
+yarn upgrade @docusaurus/core@latest @docusaurus/preset-classic@latest
 ```
+
+:::tip
+
+Use new unreleased features of Docusaurus with the [`@canary` npm dist tag](/community/canary)
+
+:::
 
 ## Problems? {#problems}
 

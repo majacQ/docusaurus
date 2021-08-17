@@ -5,8 +5,6 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-// ESLint doesn't understand types dependencies in d.ts
-// eslint-disable-next-line import/no-extraneous-dependencies
 import type {RuleSetRule, Configuration} from 'webpack';
 import type {Command} from 'commander';
 import type {ParsedUrlQueryInput} from 'querystring';
@@ -26,7 +24,7 @@ export type ThemeConfig = {
 export interface DocusaurusConfig {
   baseUrl: string;
   baseUrlIssueBanner: boolean;
-  favicon: string;
+  favicon?: string;
   tagline?: string;
   title: string;
   url: string;
@@ -127,7 +125,10 @@ export interface DocusaurusContext {
   globalData: Record<string, unknown>;
   i18n: I18n;
   codeTranslations: Record<string, string>;
-  isClient: boolean;
+
+  // Don't put mutable values here, to avoid triggering re-renders
+  // We could reconsider that choice if context selectors are implemented
+  // isBrowser: boolean; // Not here on purpose!
 }
 
 export interface Preset {
@@ -180,7 +181,7 @@ export interface LoadContext {
   siteConfig: DocusaurusConfig;
   siteConfigPath: string;
   outDir: string;
-  baseUrl: string;
+  baseUrl: string; // TODO to remove: useless, there's already siteConfig.baseUrl!
   i18n: I18n;
   ssrTemplate?: string;
   codeTranslations: Record<string, string>;
@@ -198,7 +199,7 @@ export interface Props extends LoadContext, InjectedHtmlTags {
   siteMetadata: DocusaurusSiteMetadata;
   routes: RouteConfig[];
   routesPaths: string[];
-  plugins: Plugin<unknown>[];
+  plugins: LoadedPlugin[];
 }
 
 export interface PluginContentLoadedActions {
@@ -219,7 +220,7 @@ export type AllContent = Record<
 // TODO improve type (not exposed by postcss-loader)
 export type PostCssOptions = Record<string, unknown> & {plugins: unknown[]};
 
-export interface Plugin<Content> {
+export interface Plugin<Content = unknown> {
   name: string;
   loadContent?(): Promise<Content>;
   contentLoaded?({
@@ -229,14 +230,16 @@ export interface Plugin<Content> {
     content: Content; // the content loaded by this plugin instance
     allContent: AllContent; // content loaded by ALL the plugins
     actions: PluginContentLoadedActions;
-  }): void;
+  }): Promise<void>;
   routesLoaded?(routes: RouteConfig[]): void; // TODO remove soon, deprecated (alpha-60)
   postBuild?(props: Props): void;
   postStart?(props: Props): void;
+  // TODO refactor the configureWebpack API surface: use an object instead of multiple params (requires breaking change)
   configureWebpack?(
     config: Configuration,
     isServer: boolean,
     utils: ConfigureWebpackUtils,
+    content: Content,
   ): Configuration & {mergeStrategy?: ConfigureWebpackFnMergeStrategy};
   configurePostCss?(options: PostCssOptions): PostCssOptions;
   getThemePath?(): string;
@@ -244,7 +247,11 @@ export interface Plugin<Content> {
   getPathsToWatch?(): string[];
   getClientModules?(): string[];
   extendCli?(cli: Command): void;
-  injectHtmlTags?(): {
+  injectHtmlTags?({
+    content,
+  }: {
+    content: Content;
+  }): {
     headTags?: HtmlTags;
     preBodyTags?: HtmlTags;
     postBodyTags?: HtmlTags;
@@ -278,6 +285,15 @@ export interface Plugin<Content> {
     translationFiles: TranslationFiles;
   }): ThemeConfig;
 }
+
+export type InitializedPlugin<Content = unknown> = Plugin<Content> & {
+  readonly options: PluginOptions;
+  readonly version: DocusaurusPluginVersionInformation;
+};
+
+export type LoadedPlugin<Content = unknown> = InitializedPlugin<Content> & {
+  readonly content: Content;
+};
 
 export type PluginModule = {
   <T, X>(context: LoadContext, options: T): Plugin<X>;
@@ -331,9 +347,11 @@ export interface RouteConfig {
   routes?: RouteConfig[];
   exact?: boolean;
   priority?: number;
+  [propName: string]: unknown;
 }
 
-export interface ThemeAlias {
+// Aliases used for Webpack resolution (when using docusaurus swizzle)
+export interface ThemeAliases {
   [alias: string]: string;
 }
 

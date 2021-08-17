@@ -5,20 +5,18 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-/* eslint-disable camelcase */
-
 declare module '@docusaurus/plugin-content-docs-types' {
-  export type PermalinkToSidebar = {
-    [permalink: string]: string;
-  };
+  type VersionBanner = import('./types').VersionBanner;
+  type GlobalDataVersion = import('./types').GlobalVersion;
+  type GlobalDataDoc = import('./types').GlobalDoc;
 
   export type PropVersionMetadata = {
     pluginId: string;
     version: string;
     label: string;
+    banner: VersionBanner;
     isLast: boolean;
     docsSidebars: PropSidebars;
-    permalinkToSidebar: PermalinkToSidebar;
   };
 
   type PropsSidebarItemBase = {
@@ -35,7 +33,8 @@ declare module '@docusaurus/plugin-content-docs-types' {
     type: 'category';
     label: string;
     items: PropSidebarItem[];
-    collapsed?: boolean;
+    collapsed: boolean;
+    collapsible: boolean;
   };
 
   export type PropSidebarItem = PropSidebarItemLink | PropSidebarItemCategory;
@@ -43,15 +42,19 @@ declare module '@docusaurus/plugin-content-docs-types' {
   export type PropSidebars = {
     [sidebarId: string]: PropSidebarItem[];
   };
+
+  export type {GlobalDataVersion, GlobalDataDoc};
 }
 
 declare module '@theme/DocItem' {
   import type {TOCItem} from '@docusaurus/types';
+  import type {PropVersionMetadata} from '@docusaurus/plugin-content-docs-types';
 
   export type DocumentRoute = {
     readonly component: () => JSX.Element;
     readonly exact: boolean;
     readonly path: string;
+    readonly sidebar?: string;
   };
 
   export type FrontMatter = {
@@ -59,8 +62,10 @@ declare module '@theme/DocItem' {
     readonly title: string;
     readonly image?: string;
     readonly keywords?: readonly string[];
+    /* eslint-disable camelcase */
     readonly hide_title?: boolean;
     readonly hide_table_of_contents?: boolean;
+    /* eslint-enable camelcase */
   };
 
   export type Metadata = {
@@ -78,6 +83,7 @@ declare module '@theme/DocItem' {
 
   export type Props = {
     readonly route: DocumentRoute;
+    readonly versionMetadata: PropVersionMetadata;
     readonly content: {
       readonly frontMatter: FrontMatter;
       readonly metadata: Metadata;
@@ -89,6 +95,17 @@ declare module '@theme/DocItem' {
 
   const DocItem: (props: Props) => JSX.Element;
   export default DocItem;
+}
+
+declare module '@theme/DocVersionBanner' {
+  import type {PropVersionMetadata} from '@docusaurus/plugin-content-docs-types';
+
+  export type Props = {
+    readonly versionMetadata: PropVersionMetadata;
+  };
+
+  const DocVersionBanner: (props: Props) => JSX.Element;
+  export default DocVersionBanner;
 }
 
 declare module '@theme/DocPage' {
@@ -119,4 +136,33 @@ declare module '@theme/Seo' {
 
   const Seo: (props: Props) => JSX.Element;
   export default Seo;
+}
+
+declare module '@theme/hooks/useDocs' {
+  type GlobalPluginData = import('./types').GlobalPluginData;
+  type GlobalVersion = import('./types').GlobalVersion;
+  type ActivePlugin = import('./client/docsClientUtils').ActivePlugin;
+  type ActiveDocContext = import('./client/docsClientUtils').ActiveDocContext;
+  type DocVersionSuggestions = import('./client/docsClientUtils').DocVersionSuggestions;
+
+  export type {GlobalPluginData, GlobalVersion};
+  export const useAllDocsData: () => Record<string, GlobalPluginData>;
+  export const useDocsData: (pluginId?: string) => GlobalPluginData;
+  export const useActivePlugin: (
+    options: GetActivePluginOptions = {},
+  ) => ActivePlugin | undefined;
+  export const useActivePluginAndVersion: (
+    options: GetActivePluginOptions = {},
+  ) =>
+    | {activePlugin: ActivePlugin; activeVersion: GlobalVersion | undefined}
+    | undefined;
+  export const useVersions: (pluginId?: string) => GlobalVersion[];
+  export const useLatestVersion: (pluginId?: string) => GlobalVersion;
+  export const useActiveVersion: (
+    pluginId?: string,
+  ) => GlobalVersion | undefined;
+  export const useActiveDocContext: (pluginId?: string) => ActiveDocContext;
+  export const useDocVersionSuggestions: (
+    pluginId?: string,
+  ) => DocVersionSuggestions;
 }

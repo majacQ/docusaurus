@@ -8,7 +8,6 @@
 import React, {ReactNode, useState, useCallback} from 'react';
 import {MDXProvider} from '@mdx-js/react';
 
-import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import renderRoutes from '@docusaurus/renderRoutes';
 import type {PropVersionMetadata} from '@docusaurus/plugin-content-docs-types';
 import Layout from '@theme/Layout';
@@ -18,6 +17,7 @@ import NotFound from '@theme/NotFound';
 import type {DocumentRoute} from '@theme/DocItem';
 import type {Props} from '@theme/DocPage';
 import IconArrow from '@theme/IconArrow';
+import BackToTopButton from '@theme/BackToTopButton';
 import {matchPath} from '@docusaurus/router';
 import {translate} from '@docusaurus/Translate';
 
@@ -31,36 +31,17 @@ type DocPageContentProps = {
   readonly children: ReactNode;
 };
 
-function getSidebar({versionMetadata, currentDocRoute}) {
-  function addTrailingSlash(str: string): string {
-    return str.endsWith('/') ? str : `${str}/`;
-  }
-  function removeTrailingSlash(str: string): string {
-    return str.endsWith('/') ? str.slice(0, -1) : str;
-  }
-
-  const {permalinkToSidebar, docsSidebars} = versionMetadata;
-
-  // With/without trailingSlash, we should always be able to get the appropriate sidebar
-  // note: docs plugin permalinks currently never have trailing slashes
-  // trailingSlash is handled globally at the framework level, not plugin level
-  const sidebarName =
-    permalinkToSidebar[currentDocRoute.path] ||
-    permalinkToSidebar[addTrailingSlash(currentDocRoute.path)] ||
-    permalinkToSidebar[removeTrailingSlash(currentDocRoute.path)];
-
-  const sidebar = docsSidebars[sidebarName];
-  return {sidebar, sidebarName};
-}
-
 function DocPageContent({
   currentDocRoute,
   versionMetadata,
   children,
 }: DocPageContentProps): JSX.Element {
-  const {siteConfig, isClient} = useDocusaurusContext();
   const {pluginId, version} = versionMetadata;
-  const {sidebarName, sidebar} = getSidebar({versionMetadata, currentDocRoute});
+
+  const sidebarName = currentDocRoute.sidebar;
+  const sidebar = sidebarName
+    ? versionMetadata.docsSidebars[sidebarName]
+    : undefined;
 
   const [hiddenSidebarContainer, setHiddenSidebarContainer] = useState(false);
   const [hiddenSidebar, setHiddenSidebar] = useState(false);
@@ -74,7 +55,6 @@ function DocPageContent({
 
   return (
     <Layout
-      key={isClient}
       wrapperClassName={ThemeClassNames.wrapper.docPages}
       pageClassName={ThemeClassNames.page.docPage}
       searchMetadatas={{
@@ -82,8 +62,10 @@ function DocPageContent({
         tag: docVersionSearchTag(pluginId, version),
       }}>
       <div className={styles.docPage}>
+        <BackToTopButton />
+
         {sidebar && (
-          <div
+          <aside
             className={clsx(styles.docSidebarContainer, {
               [styles.docSidebarContainerHidden]: hiddenSidebarContainer,
             })}
@@ -97,8 +79,7 @@ function DocPageContent({
               if (hiddenSidebarContainer) {
                 setHiddenSidebar(true);
               }
-            }}
-            role="complementary">
+            }}>
             <DocSidebar
               key={
                 // Reset sidebar state on sidebar changes
@@ -107,9 +88,6 @@ function DocPageContent({
               }
               sidebar={sidebar}
               path={currentDocRoute.path}
-              sidebarCollapsible={
-                siteConfig.themeConfig?.sidebarCollapsible ?? true
-              }
               onCollapse={toggleSidebar}
               isHidden={hiddenSidebar}
             />
@@ -136,7 +114,7 @@ function DocPageContent({
                 <IconArrow className={styles.expandSidebarButtonIcon} />
               </div>
             )}
-          </div>
+          </aside>
         )}
         <main
           className={clsx(styles.docMainContainer, {
@@ -145,7 +123,7 @@ function DocPageContent({
           })}>
           <div
             className={clsx(
-              'container padding-vert--lg',
+              'container padding-top--md padding-bottom--lg',
               styles.docItemWrapper,
               {
                 [styles.docItemWrapperEnhanced]: hiddenSidebarContainer,
@@ -175,7 +153,7 @@ function DocPage(props: Props): JSX.Element {
     <DocPageContent
       currentDocRoute={currentDocRoute}
       versionMetadata={versionMetadata}>
-      {renderRoutes(docRoutes)}
+      {renderRoutes(docRoutes, {versionMetadata})}
     </DocPageContent>
   );
 }

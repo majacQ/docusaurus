@@ -10,13 +10,14 @@ import clsx from 'clsx';
 import {MDXProvider} from '@mdx-js/react';
 import Translate, {translate} from '@docusaurus/Translate';
 import Link from '@docusaurus/Link';
+import {useBaseUrlUtils} from '@docusaurus/useBaseUrl';
+import {usePluralForm} from '@docusaurus/theme-common';
 import MDXComponents from '@theme/MDXComponents';
 import Seo from '@theme/Seo';
+import EditThisPage from '@theme/EditThisPage';
 import type {Props} from '@theme/BlogPostItem';
 
 import styles from './styles.module.css';
-
-import {usePluralForm} from '@docusaurus/theme-common';
 
 // Very simple pluralization: probably good enough for now
 function useReadingTimePlural() {
@@ -40,40 +41,61 @@ function useReadingTimePlural() {
 
 function BlogPostItem(props: Props): JSX.Element {
   const readingTimePlural = useReadingTimePlural();
+  const {withBaseUrl} = useBaseUrlUtils();
   const {
     children,
     frontMatter,
+    frontMatterAssets,
     metadata,
     truncated,
     isBlogPostPage = false,
   } = props;
-  const {date, formattedDate, permalink, tags, readingTime, title} = metadata;
-  const {author, image, keywords} = frontMatter;
+  const {
+    date,
+    formattedDate,
+    permalink,
+    tags,
+    readingTime,
+    title,
+    editUrl,
+  } = metadata;
+  const {author, keywords} = frontMatter;
+
+  const image = frontMatterAssets.image ?? frontMatter.image;
 
   const authorURL = frontMatter.author_url || frontMatter.authorURL;
   const authorTitle = frontMatter.author_title || frontMatter.authorTitle;
   const authorImageURL =
-    frontMatter.author_image_url || frontMatter.authorImageURL;
+    frontMatterAssets.author_image_url ||
+    frontMatterAssets.authorImageURL ||
+    frontMatter.author_image_url ||
+    frontMatter.authorImageURL;
 
   const renderPostHeader = () => {
     const TitleHeading = isBlogPostPage ? 'h1' : 'h2';
 
     return (
       <header>
-        <TitleHeading
-          className={clsx('margin-bottom--sm', styles.blogPostTitle)}>
-          {isBlogPostPage ? title : <Link to={permalink}>{title}</Link>}
+        <TitleHeading className={styles.blogPostTitle} itemProp="headline">
+          {isBlogPostPage ? (
+            title
+          ) : (
+            <Link itemProp="url" to={permalink}>
+              {title}
+            </Link>
+          )}
         </TitleHeading>
-        <div className="margin-vert--md">
-          <time dateTime={date} className={styles.blogPostDate}>
+        <div className={clsx(styles.blogPostData, 'margin-vert--md')}>
+          <time dateTime={date} itemProp="datePublished">
             {formattedDate}
-            {readingTime && (
-              <>
-                {' · '}
-                {readingTimePlural(readingTime)}
-              </>
-            )}
           </time>
+
+          {readingTime && (
+            <>
+              {' · '}
+              {readingTimePlural(readingTime)}
+            </>
+          )}
         </div>
         <div className="avatar margin-vert--md">
           {authorImageURL && (
@@ -81,16 +103,25 @@ function BlogPostItem(props: Props): JSX.Element {
               <img src={authorImageURL} alt={author} />
             </Link>
           )}
-          <div className="avatar__intro">
-            {author && (
-              <>
-                <h4 className="avatar__name">
-                  <Link href={authorURL}>{author}</Link>
-                </h4>
-                <small className="avatar__subtitle">{authorTitle}</small>
-              </>
-            )}
-          </div>
+          {author && (
+            <div
+              className="avatar__intro"
+              itemProp="author"
+              itemScope
+              itemType="https://schema.org/Person">
+              <div className="avatar__name">
+                <Link href={authorURL} itemProp="url">
+                  <span itemProp="name">{author}</span>
+                </Link>
+              </div>
+
+              {authorTitle && (
+                <small className="avatar__subtitle" itemProp="description">
+                  {authorTitle}
+                </small>
+              )}
+            </div>
+          )}
         </div>
       </header>
     );
@@ -100,13 +131,29 @@ function BlogPostItem(props: Props): JSX.Element {
     <>
       <Seo {...{keywords, image}} />
 
-      <article className={!isBlogPostPage ? 'margin-bottom--xl' : undefined}>
+      <article
+        className={!isBlogPostPage ? 'margin-bottom--xl' : undefined}
+        itemProp="blogPost"
+        itemScope
+        itemType="http://schema.org/BlogPosting">
         {renderPostHeader()}
-        <div className="markdown">
+
+        {image && (
+          <meta
+            itemProp="image"
+            content={withBaseUrl(image, {absolute: true})}
+          />
+        )}
+
+        <div className="markdown" itemProp="articleBody">
           <MDXProvider components={MDXComponents}>{children}</MDXProvider>
         </div>
+
         {(tags.length > 0 || truncated) && (
-          <footer className="row margin-vert--lg">
+          <footer
+            className={clsx('row docusaurus-mt-lg', {
+              [styles.blogPostDetailsFull]: isBlogPostPage,
+            })}>
             {tags.length > 0 && (
               <div className="col">
                 <b>
@@ -116,6 +163,7 @@ function BlogPostItem(props: Props): JSX.Element {
                     Tags:
                   </Translate>
                 </b>
+
                 {tags.map(({label, permalink: tagPermalink}) => (
                   <Link
                     key={tagPermalink}
@@ -126,7 +174,14 @@ function BlogPostItem(props: Props): JSX.Element {
                 ))}
               </div>
             )}
-            {truncated && (
+
+            {isBlogPostPage && editUrl && (
+              <div className="col margin-top--sm">
+                <EditThisPage editUrl={editUrl} />
+              </div>
+            )}
+
+            {!isBlogPostPage && truncated && (
               <div className="col text--right">
                 <Link
                   to={metadata.permalink}

@@ -18,9 +18,7 @@ import path from 'path';
 import fs from 'fs-extra';
 import routes from '@generated/routes';
 import packageJson from '../../package.json';
-// eslint-disable-next-line import/no-unresolved
 import preload from './preload';
-// eslint-disable-next-line import/no-unresolved
 import App from './App';
 import {
   createStatefulLinksCollector,
@@ -159,7 +157,7 @@ async function doRender(locals) {
     ) {
       console.error(
         chalk.red(
-          '\nDocusaurus user: you probably have this known error due to using a monorepo/workspace.\nWe have a workaround for you, check https://github.com/facebook/docusaurus/issues/3515\n',
+          '\nDocusaurus user: you probably have this known error due to using a monorepo/workspace.\nWe have a workaround for you, please see https://github.com/facebook/docusaurus/issues/3515\n',
         ),
       );
     }

@@ -3,7 +3,8 @@
   "workspaces": [
     "packages/*",
     "website",
-    "packages/docusaurus-init/templates/*"
+    "packages/docusaurus-init/templates/*",
+    "admin/new.docusaurus.io"
   ],
   "scripts": {
     "start": "yarn build:packages && yarn start:v2",
@@ -31,7 +32,8 @@
     "crowdin:upload:v2": "crowdin upload sources --config ./crowdin-v2.yaml",
     "crowdin:download:v2": "crowdin download --config ./crowdin-v2.yaml",
     "canary": "yarn canary:bumpVersion && yarn canary:publish",
-    "canary:bumpVersion": "yarn lerna version 2.0.0-beta.`git rev-parse --short HEAD` --exact --no-push --yes",
+    "canary:version": "echo 0.0.0-`git rev-list --count HEAD`+`git rev-parse --short HEAD`",
+    "canary:bumpVersion": "yarn lerna version `yarn --silent canary:version` --exact --no-push --yes",
     "canary:publish": "yarn lerna publish from-package --dist-tag canary --yes --no-verify-access",
     "changelog": "lerna-changelog",
     "postinstall": "run-p postinstall:**",
@@ -49,7 +51,7 @@
     "test": "cross-env TZ=UTC jest",
     "test:build:v2": "./admin/scripts/test-release.sh",
     "watch": "yarn lerna run --parallel --no-private watch",
-    "clear": "yarn workspace docusaurus-2-website clear && yarn lerna exec --ignore docusaurus yarn rimraf lib",
+    "clear": "(yarn workspace docusaurus-2-website clear || echo 'Failure while running docusaurus clear') && yarn lerna exec --ignore docusaurus yarn rimraf lib lib-next",
     "test:baseUrl": "yarn build:v2:baseUrl && yarn serve:v2:baseUrl",
     "lock:update": "npx yarn-deduplicate"
   },
@@ -61,7 +63,7 @@
     "@babel/plugin-proposal-optional-chaining": "^7.12.16",
     "@babel/plugin-transform-modules-commonjs": "^7.12.13",
     "@babel/preset-typescript": "^7.12.16",
-    "@crowdin/cli": "^3.5.3",
+    "@crowdin/cli": "^3.6.4",
     "@formatjs/intl-datetimeformat": "^3.2.12",
     "@formatjs/intl-numberformat": "^6.2.2",
     "@formatjs/intl-pluralrules": "^4.0.11",

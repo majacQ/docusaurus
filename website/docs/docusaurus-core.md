@@ -60,6 +60,8 @@ This component enables linking to internal pages as well as a powerful performan
 
 The component is a wrapper around react-router’s `<Link>` component that adds useful enhancements specific to Docusaurus. All props are passed through to react-router’s `<Link>` component.
 
+External links also work, and automatically have these props: `target="_blank" rel="noopener noreferrer"`.
+
 ```jsx {2,7}
 import React from 'react';
 import Link from '@docusaurus/Link';
@@ -70,8 +72,7 @@ const Page = () => (
       Check out my <Link to="/blog">blog</Link>!
     </p>
     <p>
-      {/* Note that external links still use `a` tags, but automatically opens in new tab. */}
-      Follow me on <a href="https://twitter.com/docusaurus">Twitter</a>!
+      Follow me on <Link to="https://twitter.com/docusaurus">Twitter</Link>!
     </p>
   </div>
 );
@@ -108,19 +109,56 @@ const Home = () => {
 
 ### `<BrowserOnly/>` {#browseronly}
 
-The `<BrowserOnly>` component accepts a `children` prop, a render function which will not be executed during the pre-rendering phase of the build process. This is useful for hiding code that is only meant to run in the browsers (e.g. where the `window`/`document` objects are being accessed). To improve SEO, you can also provide fallback content using the `fallback` prop, which will be prerendered until in the build process and replaced with the client-side only contents when viewed in the browser.
+The `<BrowserOnly>` component permits to render React components only in the browser, after the React app has hydrated.
 
-```jsx {1,5-10}
+:::tip
+
+Use it for integrating with code that can't run in Node.js, because `window` or `document` objects are being accessed.
+
+:::
+
+#### Props {#browseronly-props}
+
+- `children`: render function prop returning browser-only JSX. Will not be executed in Node.js
+- `fallback` (optional): JSX to render on the server (Node.js) and until React hydration completes.
+
+#### Example with code {#browseronly-example-code}
+
+```jsx
+// highlight-start
 import BrowserOnly from '@docusaurus/BrowserOnly';
+// highlight-end
 
 const MyComponent = () => {
   return (
-    <BrowserOnly
-      fallback={<div>The fallback content to display on prerendering</div>}>
+    // highlight-start
+    <BrowserOnly>
       {() => {
-        // Something that should be excluded during build process prerendering.
+        <span>page url = {window.location.href}</span>;
       }}
     </BrowserOnly>
+    // highlight-end
+  );
+};
+```
+
+#### Example with a library {#browseronly-example-library}
+
+```jsx
+// highlight-start
+import BrowserOnly from '@docusaurus/BrowserOnly';
+// highlight-end
+
+const MyComponent = (props) => {
+  return (
+    // highlight-start
+    <BrowserOnly fallback={<div>Loading...</div>}>
+      {() => {
+        const LibComponent = require('some-lib').LibComponent;
+        return <LibComponent {...props} />;
+      }}
+    </BrowserOnly>
+    // highlight-end
   );
 };
 ```
@@ -131,7 +169,7 @@ A simple interpolation component for text containing dynamic placeholders.
 
 The placeholders will be replaced with the provided dynamic values and JSX elements of your choice (strings, links, styled elements...).
 
-#### Props {#props}
+#### Props {#interpolate-props}
 
 - `children`: text containing interpolation placeholders like `{placeholderName}`
 - `values`: object containing interpolation placeholder values
@@ -164,7 +202,7 @@ export default function VisitMyWebsiteMessage() {
 
 When [localizing your site](./i18n/i18n-introduction.md), the `<Translate/>` component will allow providing **translation support to React components**, such as your homepage. The `<Translate>` component supports [interpolation](#interpolate).
 
-The translation strings will be extracted from your code with the [`docusaurus write-translations`](./cli.md#docusaurus-write-translations) CLI and create a `code.json` translation file in `website/i18n/<locale>`.
+The translation strings will be extracted from your code with the [`docusaurus write-translations`](./cli.md#docusaurus-write-translations-sitedir) CLI and create a `code.json` translation file in `website/i18n/<locale>`.
 
 :::note
 
@@ -174,7 +212,7 @@ Apart the `values` prop used for interpolation, it is **not possible to use vari
 
 :::
 
-#### Props {#props-1}
+#### Props {#translate-props}
 
 - `children`: untranslated string in the default site locale (can contain [interpolation placeholders](#interpolate))
 - `id`: optional value to use as key in JSON translation files
@@ -234,9 +272,24 @@ interface DocusaurusSiteMetadata {
   readonly pluginVersions: Record<string, DocusaurusPluginVersionInformation>;
 }
 
+interface I18nLocaleConfig {
+  label: string;
+  direction: string;
+}
+
+interface I18n {
+  defaultLocale: string;
+  locales: [string, ...string[]];
+  currentLocale: string;
+  localeConfigs: Record<string, I18nLocaleConfig>;
+}
+
 interface DocusaurusContext {
   siteConfig: DocusaurusConfig;
   siteMetadata: DocusaurusSiteMetadata;
+  globalData: Record<string, unknown>;
+  i18n: I18n;
+  codeTranslations: Record<string, string>;
 }
 ```
 
@@ -255,6 +308,34 @@ const MyComponent = () => {
       <div>{siteMetadata.docusaurusVersion}</div>
     </div>
   );
+};
+```
+
+### `useIsBrowser` {#useIsBrowser}
+
+Returns `true` when the React app has successfully hydrated in the browser.
+
+:::caution
+
+Use this hook instead of `typeof windows !== 'undefined'` in React rendering logic.
+
+The first client-side render output (in the browser) **must be exactly the same** as the server-side render output (Node.js).
+
+Not following this rule can lead to unexpected hydration behaviors, as described in [The Perils of Rehydration](https://www.joshwcomeau.com/react/the-perils-of-rehydration/).
+
+:::
+
+Usage example:
+
+```jsx
+import React from 'react';
+import useIsBrowser from '@docusaurus/useIsBrowser';
+
+const MyComponent = () => {
+  // highlight-start
+  const isBrowser = useIsBrowser();
+  // highlight-end
+  return <div>{isBrowser ? 'Client' : 'Server'}</div>;
 };
 ```
 
@@ -508,21 +589,27 @@ export default function Home() {
 
 ### `ExecutionEnvironment` {#executionenvironment}
 
-A module which exposes a few boolean variables to check the current rendering environment. Useful if you want to only run certain code on client/server or need to write server-side rendering compatible code.
+A module which exposes a few boolean variables to check the current rendering environment.
 
-```jsx {2,5}
-import React from 'react';
+:::caution
+
+For React rendering logic, use [`useIsBrowser()`](#useIsBrowser) or [`<BrowserOnly>`](#browseronly) instead.
+
+:::
+
+Example:
+
+```jsx
 import ExecutionEnvironment from '@docusaurus/ExecutionEnvironment';
 
-const MyPage = () => {
-  const location = ExecutionEnvironment.canUseDOM ? window.location.href : null;
-  return <div>{location}</div>;
-};
+if (ExecutionEnvironment.canUseDOM) {
+  require('lib-that-only-works-client-side');
+}
 ```
 
 | Field | Description |
 | --- | --- |
-| `ExecutionEnvironment.canUseDOM` | `true` if on client, `false` if prerendering. |
+| `ExecutionEnvironment.canUseDOM` | `true` if on client/browser, `false` on Node.js/prerendering. |
 | `ExecutionEnvironment.canUseEventListeners` | `true` if on client and has `window.addEventListener`. |
 | `ExecutionEnvironment.canUseIntersectionObserver` | `true` if on client and has `IntersectionObserver`. |
 | `ExecutionEnvironment.canUseViewport` | `true` if on client and has `window.screen`. |

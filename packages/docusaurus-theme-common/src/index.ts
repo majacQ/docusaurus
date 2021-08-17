@@ -33,7 +33,25 @@ export {useTitleFormatter} from './utils/generalUtils';
 
 export {usePluralForm} from './utils/usePluralForm';
 
-export {useChangeRoute} from './utils/useChangeRoute';
+export {useLocationChange} from './utils/useLocationChange';
+
+export {usePrevious} from './utils/usePrevious';
+
+export {useCollapsible, Collapsible} from './components/Collapsible';
+export type {
+  UseCollapsibleConfig,
+  UseCollapsibleReturns,
+} from './components/Collapsible';
+
+export {default as Details} from './components/Details';
+export type {DetailsProps} from './components/Details';
+
+export {
+  MobileSecondaryMenuProvider,
+  MobileSecondaryMenuFiller,
+  useMobileSecondaryMenuRenderer,
+} from './utils/mobileSecondaryMenu';
+export type {MobileSecondaryMenuComponent} from './utils/mobileSecondaryMenu';
 
 export {
   useDocsPreferredVersion,
@@ -43,3 +61,10 @@ export {
 export {DocsPreferredVersionContextProvider} from './utils/docsPreferredVersion/DocsPreferredVersionProvider';
 
 export {ThemeClassNames} from './utils/ThemeClassNames';
+
+export {
+  AnnouncementBarProvider,
+  useAnnouncementBar,
+} from './utils/announcementBarUtils';
+
+export {useLocalPathname} from './utils/useLocalPathname';

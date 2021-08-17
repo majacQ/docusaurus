@@ -20,11 +20,6 @@ export interface BlogContent {
   blogTagsListPath: string | null;
 }
 
-export interface DateLink {
-  date: Date;
-  link: string;
-}
-
 export type FeedType = 'rss' | 'atom';
 
 export type EditUrlFunction = (editUrlParams: {
@@ -39,7 +34,8 @@ export interface PluginOptions extends RemarkAndRehypePluginOptions {
   path: string;
   routeBasePath: string;
   include: string[];
-  postsPerPage: number;
+  exclude: string[];
+  postsPerPage: number | 'ALL';
   blogListComponent: string;
   blogPostComponent: string;
   blogTagsListComponent: string;

@@ -44,8 +44,10 @@ function getDocById(version: LoadedVersion, unversionedId: string) {
   const doc = findDocById(version, unversionedId);
   if (!doc) {
     throw new Error(
-      `No doc found with id=${unversionedId} in version ${version.versionName}.
-Available ids=\n- ${version.docs.map((d) => d.unversionedId).join('\n- ')}`,
+      `No doc found with id "${unversionedId}" in version ${
+        version.versionName
+      }.
+Available ids are:\n- ${version.docs.map((d) => d.unversionedId).join('\n- ')}`,
     );
   }
   return doc;
@@ -85,7 +87,7 @@ const createFakeActions = (contentDir: string) => {
       key.startsWith(prefix),
     );
     if (!entry) {
-      throw new Error(`No created entry found for prefix=[${prefix}]
+      throw new Error(`No created entry found for prefix "${prefix}".
 Entries created:
 - ${Object.keys(dataContainer).join('\n- ')}
         `);
@@ -103,9 +105,6 @@ Entries created:
         `version-${kebabCase(version.versionName)}-metadata-prop`,
       );
       expect(versionMetadataProp.docsSidebars).toEqual(toSidebarsProp(version));
-      expect(versionMetadataProp.permalinkToSidebar).toEqual(
-        version.permalinkToSidebar,
-      );
     },
 
     expectSnapshot: () => {
@@ -151,8 +150,8 @@ describe('sidebar', () => {
       );
       await plugin.loadContent!();
     }).rejects.toThrowErrorMatchingInlineSnapshot(`
-            "The path to the sidebar file does not exist at [wrong-path-sidebar.json].
-            Please set the docs [sidebarPath] field in your config file to:
+            "The path to the sidebar file does not exist at \\"wrong-path-sidebar.json\\".
+            Please set the docs \\"sidebarPath\\" field in your config file to:
             - a sidebars path that exists
             - false: to disable the sidebar
             - undefined: for Docusaurus generates it automatically"
@@ -217,7 +216,7 @@ describe('empty/no docs website', () => {
     await expect(
       plugin.loadContent!(),
     ).rejects.toThrowErrorMatchingInlineSnapshot(
-      `"Docs version current has no docs! At least one doc should exist at path=[docs]"`,
+      `"Docs version \\"current\\" has no docs! At least one doc should exist at \\"docs\\"."`,
     );
   });
 
@@ -231,11 +230,11 @@ describe('empty/no docs website', () => {
         }),
       ),
     ).toThrowError(
-      `The docs folder does not exist for version [current]. A docs folder is expected to be found at ${
+      `The docs folder does not exist for version "current". A docs folder is expected to be found at ${
         process.platform === 'win32'
           ? 'path\\doesnt\\exist'
           : 'path/doesnt/exist'
-      }`,
+      }.`,
     );
   });
 });
@@ -271,6 +270,8 @@ describe('simple website', () => {
     expect(mock).toHaveBeenCalledWith('1.0.0', siteDir, DEFAULT_PLUGIN_ID, {
       path: 'docs',
       sidebarPath,
+      sidebarCollapsed: true,
+      sidebarCollapsible: true,
     });
     mock.mockRestore();
   });
@@ -307,6 +308,8 @@ describe('simple website', () => {
   test('configureWebpack', async () => {
     const {plugin} = await loadSite();
 
+    const content = await plugin.loadContent?.();
+
     const config = applyConfigureWebpack(
       plugin.configureWebpack,
       {
@@ -317,6 +320,8 @@ describe('simple website', () => {
         },
       },
       false,
+      undefined,
+      content,
     );
     const errors = validate(config);
     expect(errors).toBeUndefined();
@@ -328,6 +333,40 @@ describe('simple website', () => {
     expect(content.loadedVersions.length).toEqual(1);
     const [currentVersion] = content.loadedVersions;
 
+    expect(findDocById(currentVersion, 'foo/baz')).toEqual({
+      ...defaultDocMetadata,
+      version: 'current',
+      id: 'foo/baz',
+      unversionedId: 'foo/baz',
+      sourceDirName: 'foo',
+      isDocsHomePage: false,
+      permalink: '/docs/foo/bazSlug.html',
+      slug: '/foo/bazSlug.html',
+      previous: {
+        title: 'Bar',
+        permalink: '/docs/foo/bar',
+      },
+      next: {
+        title: 'Hello sidebar_label',
+        permalink: '/docs/',
+      },
+      sidebar: 'docs',
+      source: path.posix.join(
+        '@site',
+        posixPath(path.relative(siteDir, currentVersion.contentPath)),
+        'foo',
+        'baz.md',
+      ),
+      title: 'baz',
+      description: 'Images',
+      frontMatter: {
+        id: 'baz',
+        title: 'baz',
+        slug: 'bazSlug.html',
+        pagination_label: 'baz pagination_label',
+      },
+    });
+
     expect(findDocById(currentVersion, 'hello')).toEqual({
       ...defaultDocMetadata,
       version: 'current',
@@ -338,7 +377,7 @@ describe('simple website', () => {
       permalink: '/docs/',
       slug: '/',
       previous: {
-        title: 'baz',
+        title: 'baz pagination_label',
         permalink: '/docs/foo/bazSlug.html',
       },
       sidebar: 'docs',
@@ -352,6 +391,7 @@ describe('simple website', () => {
       frontMatter: {
         id: 'hello',
         title: 'Hello, World !',
+        sidebar_label: 'Hello sidebar_label',
       },
     });
 
@@ -363,7 +403,7 @@ describe('simple website', () => {
       sourceDirName: 'foo',
       isDocsHomePage: false,
       next: {
-        title: 'baz',
+        title: 'baz pagination_label',
         permalink: '/docs/foo/bazSlug.html',
       },
       permalink: '/docs/foo/bar',
@@ -440,6 +480,8 @@ describe('versioned website', () => {
     expect(mock).toHaveBeenCalledWith('2.0.0', siteDir, DEFAULT_PLUGIN_ID, {
       path: routeBasePath,
       sidebarPath,
+      sidebarCollapsed: true,
+      sidebarCollapsible: true,
     });
     mock.mockRestore();
   });
@@ -691,6 +733,8 @@ describe('versioned website (community)', () => {
     expect(mock).toHaveBeenCalledWith('2.0.0', siteDir, pluginId, {
       path: routeBasePath,
       sidebarPath,
+      sidebarCollapsed: true,
+      sidebarCollapsible: true,
     });
     mock.mockRestore();
   });
@@ -869,6 +913,7 @@ describe('site with full autogenerated sidebar', () => {
           type: 'category',
           label: 'Guides',
           collapsed: true,
+          collapsible: true,
           items: [
             {
               type: 'doc',
@@ -900,6 +945,7 @@ describe('site with full autogenerated sidebar', () => {
           type: 'category',
           label: 'API (label from _category_.json)',
           collapsed: true,
+          collapsible: true,
           items: [
             {
               type: 'doc',
@@ -909,6 +955,7 @@ describe('site with full autogenerated sidebar', () => {
               type: 'category',
               label: 'Core APIs',
               collapsed: true,
+              collapsible: true,
               items: [
                 {
                   type: 'doc',
@@ -925,6 +972,7 @@ describe('site with full autogenerated sidebar', () => {
               type: 'category',
               label: 'Extension APIs (label from _category_.yml)',
               collapsed: true,
+              collapsible: true,
               items: [
                 {
                   type: 'doc',
@@ -1423,6 +1471,7 @@ describe('site with partial autogenerated sidebars', () => {
           type: 'category',
           label: 'Some category',
           collapsed: true,
+          collapsible: true,
           items: [
             {
               type: 'doc',
@@ -1612,6 +1661,7 @@ describe('site with partial autogenerated sidebars 2 (fix #4638)', () => {
           type: 'category',
           label: 'Core APIs',
           collapsed: true,
+          collapsible: true,
           items: [
             {
               type: 'doc',
@@ -1628,6 +1678,7 @@ describe('site with partial autogenerated sidebars 2 (fix #4638)', () => {
           type: 'category',
           label: 'Extension APIs (label from _category_.yml)', // Fix #4638
           collapsed: true,
+          collapsible: true,
           items: [
             {
               type: 'doc',
@@ -1744,6 +1795,7 @@ describe('site with custom sidebar items generator', () => {
           type: 'category',
           label: 'API (label from _category_.json)',
           collapsed: true,
+          collapsible: true,
           items: [
             {
               type: 'doc',
@@ -1753,6 +1805,7 @@ describe('site with custom sidebar items generator', () => {
               type: 'category',
               label: 'Extension APIs (label from _category_.yml)',
               collapsed: true,
+              collapsible: true,
               items: [
                 {
                   type: 'doc',
@@ -1768,6 +1821,7 @@ describe('site with custom sidebar items generator', () => {
               type: 'category',
               label: 'Core APIs',
               collapsed: true,
+              collapsible: true,
               items: [
                 {
                   type: 'doc',
@@ -1789,6 +1843,7 @@ describe('site with custom sidebar items generator', () => {
           type: 'category',
           label: 'Guides',
           collapsed: true,
+          collapsible: true,
           items: [
             {
               type: 'doc',

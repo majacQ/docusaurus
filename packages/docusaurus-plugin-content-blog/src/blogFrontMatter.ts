@@ -5,22 +5,22 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-/* eslint-disable camelcase */
-
 import {
   JoiFrontMatter as Joi, // Custom instance for frontmatter
+  URISchema,
   validateFrontMatter,
 } from '@docusaurus/utils-validation';
 import {Tag} from './types';
 
 export type BlogPostFrontMatter = {
+  /* eslint-disable camelcase */
   id?: string;
   title?: string;
   description?: string;
   tags?: (string | Tag)[];
   slug?: string;
   draft?: boolean;
-  date?: Date;
+  date?: Date | string; // Yaml automagically convert some string patterns as Date, but not all
 
   author?: string;
   author_title?: string;
@@ -35,6 +35,7 @@ export type BlogPostFrontMatter = {
   authorTitle?: string;
   authorURL?: string;
   authorImageURL?: string;
+  /* eslint-enable camelcase */
 };
 
 // NOTE: we don't add any default value on purpose here
@@ -59,19 +60,19 @@ const BlogFrontMatterSchema = Joi.object<BlogPostFrontMatter>({
 
   author: Joi.string(),
   author_title: Joi.string(),
-  author_url: Joi.string().uri(),
-  author_image_url: Joi.string().uri(),
+  author_url: URISchema,
+  author_image_url: URISchema,
   slug: Joi.string(),
-  image: Joi.string().uri({relativeOnly: true}),
+  image: URISchema,
   keywords: Joi.array().items(Joi.string().required()),
   hide_table_of_contents: Joi.boolean(),
 
   // TODO re-enable warnings later, our v1 blog posts use those older frontmatter fields
-  authorURL: Joi.string().uri(),
+  authorURL: URISchema,
   // .warning('deprecate.error', { alternative: '"author_url"'}),
   authorTitle: Joi.string(),
   // .warning('deprecate.error', { alternative: '"author_title"'}),
-  authorImageURL: Joi.string().uri(),
+  authorImageURL: URISchema,
   // .warning('deprecate.error', { alternative: '"author_image_url"'}),
 })
   .unknown()

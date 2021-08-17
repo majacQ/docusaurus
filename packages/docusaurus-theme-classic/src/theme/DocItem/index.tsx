@@ -6,25 +6,24 @@
  */
 
 import React from 'react';
+import clsx from 'clsx';
+
+import {useActivePlugin, useVersions} from '@theme/hooks/useDocs';
+import useWindowSize from '@theme/hooks/useWindowSize';
 import DocPaginator from '@theme/DocPaginator';
-import DocVersionSuggestions from '@theme/DocVersionSuggestions';
+import DocVersionBanner from '@theme/DocVersionBanner';
 import Seo from '@theme/Seo';
 import LastUpdated from '@theme/LastUpdated';
 import type {Props} from '@theme/DocItem';
 import TOC from '@theme/TOC';
+import TOCCollapsible from '@theme/TOCCollapsible';
 import EditThisPage from '@theme/EditThisPage';
 import {MainHeading} from '@theme/Heading';
 
-import clsx from 'clsx';
 import styles from './styles.module.css';
-import {
-  useActivePlugin,
-  useVersions,
-  useActiveVersion,
-} from '@theme/hooks/useDocs';
 
 function DocItem(props: Props): JSX.Element {
-  const {content: DocContent} = props;
+  const {content: DocContent, versionMetadata} = props;
   const {metadata, frontMatter} = DocContent;
   const {
     image,
@@ -41,9 +40,8 @@ function DocItem(props: Props): JSX.Element {
     lastUpdatedBy,
   } = metadata;
 
-  const {pluginId} = useActivePlugin({failfast: true});
+  const {pluginId} = useActivePlugin({failfast: true})!;
   const versions = useVersions(pluginId);
-  const version = useActiveVersion(pluginId);
 
   // If site is not versioned or only one version is included
   // we don't show the version badge
@@ -56,6 +54,14 @@ function DocItem(props: Props): JSX.Element {
   const shouldAddTitle =
     !hideTitle && typeof DocContent.contentTitle === 'undefined';
 
+  const windowSize = useWindowSize();
+
+  const canRenderTOC =
+    !hideTableOfContents && DocContent.toc && DocContent.toc.length > 0;
+
+  const renderTocDesktop =
+    canRenderTOC && (windowSize === 'desktop' || windowSize === 'ssr');
+
   return (
     <>
       <Seo {...{title, description, keywords, image}} />
@@ -65,13 +71,20 @@ function DocItem(props: Props): JSX.Element {
           className={clsx('col', {
             [styles.docItemCol]: !hideTableOfContents,
           })}>
-          <DocVersionSuggestions />
+          <DocVersionBanner versionMetadata={versionMetadata} />
           <div className={styles.docItemContainer}>
             <article>
               {showVersionBadge && (
                 <span className="badge badge--secondary">
-                  Version: {version.label}
+                  Version: {versionMetadata.label}
                 </span>
+              )}
+
+              {canRenderTOC && (
+                <TOCCollapsible
+                  toc={DocContent.toc}
+                  className={styles.tocMobile}
+                />
               )}
 
               <div className="markdown">
@@ -86,7 +99,7 @@ function DocItem(props: Props): JSX.Element {
               </div>
 
               {(editUrl || lastUpdatedAt || lastUpdatedBy) && (
-                <footer className={clsx('row', styles.docUpdateDetails)}>
+                <footer className="row docusaurus-mt-lg">
                   <div className="col">
                     {editUrl && <EditThisPage editUrl={editUrl} />}
                   </div>
@@ -104,12 +117,10 @@ function DocItem(props: Props): JSX.Element {
               )}
             </article>
 
-            <div className={styles.docPaginator}>
-              <DocPaginator metadata={metadata} />
-            </div>
+            <DocPaginator metadata={metadata} />
           </div>
         </div>
-        {!hideTableOfContents && DocContent.toc && (
+        {renderTocDesktop && (
           <div className="col col--3">
             <TOC toc={DocContent.toc} />
           </div>
